@@ -74,6 +74,24 @@ async def startup_event():
         )
 
 
+# ─── Root ─────────────────────────────────────────────────────────────────────
+@app.get("/")
+async def root():
+    return {
+        "name": "Document QA System API",
+        "status": "online",
+        "docs_url": "http://localhost:8080/docs",
+        "frontend_url": "http://localhost:5173",
+        "endpoints": {
+            "upload": "POST /upload",
+            "documents": "GET /documents",
+            "graph": "GET /graph",
+            "ask": "POST /ask",
+            "health": "GET /health"
+        }
+    }
+
+
 # ─── Health ───────────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
