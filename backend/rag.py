@@ -37,13 +37,21 @@ def get_client() -> genai.Client:
 # ─── File Search Store ────────────────────────────────────────────────────────
 
 def get_or_create_store() -> str:
-    """Return the persisted store name, or create a new one."""
+    """Return the persisted store name if accessible with current key, or create a new one."""
+    client = get_client()
     stored = db.get_setting(STORE_NAME_KEY)
     if stored:
-        logger.info("Reusing persisted File Search store: %s", stored)
-        return stored
+        try:
+            client.file_search_stores.get(name=stored)
+            logger.info("Reusing verified File Search store: %s", stored)
+            return stored
+        except Exception as e:
+            logger.warning(
+                "Stored store '%s' is not accessible with the current API key (%s). Creating a fresh store.",
+                stored,
+                e,
+            )
 
-    client = get_client()
     store = client.file_search_stores.create(
         config={
             "display_name": "doc-qa-store",
