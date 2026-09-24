@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import time
+import asyncio
 import logging
 from typing import AsyncGenerator
 
@@ -20,13 +21,13 @@ from models import AskResponse, Citation, ChatMessage
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-2")
 STORE_NAME_KEY = "file_search_store_name"
 
 def get_candidate_models() -> list[str]:
-    primary = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-    fallback = ["gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"]
+    primary = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+    fallback = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"]
     candidates = [primary] + [m for m in fallback if m != primary]
     return candidates
 
@@ -288,5 +289,23 @@ async def ask_question_stream(
             logger.warning("Streaming with model '%s' failed: %s. Trying fallback model...", model_name, e)
             continue
 
-    # If all candidate models failed
+    # If streaming yielded no output, fall back to reliable non-streaming ask_question
+    try:
+        logger.info("Streaming yielded no text, falling back to non-streaming ask_question...")
+        res = ask_question(question, store_name, history)
+        if res.answer:
+            words = res.answer.split(" ")
+            for i in range(0, len(words), 4):
+                chunk = " ".join(words[i : i + 4]) + (" " if i + 4 < len(words) else "")
+                yield "data: " + json.dumps({"type": "text", "content": chunk}) + "\n\n"
+                await asyncio.sleep(0.01)
+
+            citations_dicts = [{"file_name": c.file_name, "source": c.source} for c in res.citations]
+            yield "data: " + json.dumps({"type": "citations", "citations": citations_dicts}) + "\n\n"
+            yield "data: " + json.dumps({"type": "done"}) + "\n\n"
+            return
+    except Exception as e:
+        logger.error("Non-streaming fallback also failed: %s", e)
+
+    # If all options failed
     yield "data: " + json.dumps({"type": "error", "message": "The AI service is experiencing high demand. Please try asking again in a few moments."}) + "\n\n"
