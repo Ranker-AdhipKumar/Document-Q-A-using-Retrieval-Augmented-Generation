@@ -207,22 +207,47 @@ async def ask(request: AskRequest):
 
     async def event_generator():
         import json
-        try:
-            async for chunk in rag.ask_question_stream(
-                question=request.question,
-                store_name=store_name,
-                history=request.history,
-            ):
+        import asyncio
+
+        # Send immediate heartbeat
+        yield "data: " + json.dumps({"type": "ping"}) + "\n\n"
+
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def producer():
+            try:
+                async for chunk in rag.ask_question_stream(
+                    question=request.question,
+                    store_name=store_name,
+                    history=request.history,
+                ):
+                    await queue.put(chunk)
+            except Exception as e:
+                logger.error("Streaming error: %s", e)
+                await queue.put("data: " + json.dumps({"type": "error", "message": str(e)}) + "\n\n")
+            finally:
+                await queue.put(None)
+
+        producer_task = asyncio.create_task(producer())
+
+        while True:
+            try:
+                chunk = await asyncio.wait_for(queue.get(), timeout=2.5)
+                if chunk is None:
+                    break
                 yield chunk
-        except Exception as e:
-            logger.error("Streaming error: %s", e)
-            yield "data: " + json.dumps({"type": "error", "message": str(e)}) + "\n\n"
+            except asyncio.TimeoutError:
+                # Send periodic heartbeat to keep cloud proxy connection active
+                yield "data: " + json.dumps({"type": "ping"}) + "\n\n"
+
+        await producer_task
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
     )

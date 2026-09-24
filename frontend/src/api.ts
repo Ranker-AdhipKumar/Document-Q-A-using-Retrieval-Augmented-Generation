@@ -147,7 +147,8 @@ export function askStream(
           if (!line) continue;
           try {
             const msg = JSON.parse(line);
-            if (msg.type === "text") callbacks.onToken(msg.content);
+            if (msg.type === "ping") continue;
+            else if (msg.type === "text") callbacks.onToken(msg.content);
             else if (msg.type === "citations") callbacks.onCitations(msg.citations);
             else if (msg.type === "done") callbacks.onDone();
             else if (msg.type === "error") callbacks.onError(msg.message);

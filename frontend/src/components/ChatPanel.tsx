@@ -159,7 +159,19 @@ export default function ChatPanel({ prefillQuery, onQueryConsumed }: Props) {
 
             <div className="message-body">
               <div className="message-content">
-                {msg.content || (msg.streaming && <span className="cursor" />)}
+                {msg.content ? (
+                  <>
+                    {msg.content}
+                    {msg.streaming && <span className="cursor" />}
+                  </>
+                ) : (
+                  msg.streaming && (
+                    <span className="searching-hint">
+                      <span className="spin" style={{ display: "inline-block", marginRight: "6px" }}>⚙️</span>
+                      Searching documents & generating answer...
+                    </span>
+                  )
+                )}
               </div>
 
               {/* Citations */}

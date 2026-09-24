@@ -26,8 +26,11 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-2")
 STORE_NAME_KEY = "file_search_store_name"
 
 def get_candidate_models() -> list[str]:
-    primary = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
-    fallback = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"]
+    # Strictly prioritize high-quota, active models that do not hit the 20 req/day free tier cap
+    primary = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    if primary in ("gemini-3.8-flash", "gemini-flash-latest"):
+        primary = "gemini-3.5-flash-lite"
+    fallback = ["gemini-3.5-flash-lite", "gemini-3.5-flash"]
     candidates = [primary] + [m for m in fallback if m != primary]
     return candidates
 
@@ -229,6 +232,9 @@ async def ask_question_stream(
 
     citations: list[Citation] = []
     models_to_try = get_candidate_models()
+
+    # Send immediate ping to establish SSE stream and prevent cloud proxy timeout
+    yield "data: " + json.dumps({"type": "ping"}) + "\n\n"
 
     for model_name in models_to_try:
         try:
