@@ -48,6 +48,27 @@ A full-stack RAG (Retrieval-Augmented Generation) system for uploading documents
 
 ---
 
+### 📚 Question-Answer Output Gallery (10+ Showcase Outputs)
+
+Explore authentic response captures and stitched continuous answers in the **[Outputs Gallery](outputs/README.md)**:
+
+* 📄 **[Full Stitched View — Switch Statement & Control Flow](outputs/01_stitched_switch_statement_full.png)**
+* 🔍 **[Binary Search Algorithm & O(log n) Analysis](outputs/02_binary_search_algorithm.png)**
+* ⏱️ **[Time Complexity & Big O Notation](outputs/03_time_complexity_big_o.png)**
+* 🧱 **[Linear vs. Non-Linear Data Structures](outputs/04_linear_vs_nonlinear_ds.png)**
+* 🔁 **[Recursion & Call Stack Execution](outputs/05_recursion_and_base_condition.png)**
+* 💾 **[Pointers & Dynamic Memory Allocation (`malloc`, `calloc`, `free`)](outputs/06_pointers_and_dynamic_memory.png)**
+* ⚡ **[Merge Sort Divide & Conquer](outputs/07_merge_sort_divide_conquer.png)**
+* 🥞 **[Stack LIFO & Expression Evaluation](outputs/08_stack_data_structure_lifo.png)**
+* 🔄 **[Circular Queue & Modulo Indexing](outputs/09_queue_and_circular_queue.png)**
+* 🔀 **[If-Else Ladder vs. Switch Case Jump Tables](outputs/10_if_else_vs_switch_case.png)**
+* 📐 **[Algorithm Essential Properties](outputs/11_algorithm_properties.png)**
+* 🕸️ **[Graph Traversal: BFS vs. DFS](outputs/12_graph_traversal_bfs_vs_dfs.png)**
+
+*(See all screenshots and previews in the [outputs/](outputs/README.md) directory)*
+
+---
+
 ## ✨ Features
 
 | Feature | Detail |
