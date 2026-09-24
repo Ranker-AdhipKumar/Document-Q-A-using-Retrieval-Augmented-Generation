@@ -3,7 +3,8 @@
  * Handles REST calls + SSE streaming for /ask.
  */
 
-const BASE = "http://localhost:8080";
+const BASE = (import.meta as any).env?.VITE_API_BASE_URL ||
+  (typeof window !== "undefined" && window.location.port === "5173" ? "http://localhost:8080" : "");
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

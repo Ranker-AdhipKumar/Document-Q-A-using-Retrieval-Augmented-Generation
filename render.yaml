@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: document-qa-system
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MAX_PERSISTED_DOCS
+        value: "20"
+      - key: GEMINI_MODEL
+        value: "gemini-3.8-flash"
+      - key: EMBEDDING_MODEL
+        value: "models/gemini-embedding-2"

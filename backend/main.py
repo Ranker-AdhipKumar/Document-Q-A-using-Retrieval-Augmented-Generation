@@ -74,22 +74,7 @@ async def startup_event():
         )
 
 
-# ─── Root ─────────────────────────────────────────────────────────────────────
-@app.get("/")
-async def root():
-    return {
-        "name": "Document QA System API",
-        "status": "online",
-        "docs_url": "http://localhost:8080/docs",
-        "frontend_url": "http://localhost:5173",
-        "endpoints": {
-            "upload": "POST /upload",
-            "documents": "GET /documents",
-            "graph": "GET /graph",
-            "ask": "POST /ask",
-            "health": "GET /health"
-        }
-    }
+
 
 
 # ─── Health ───────────────────────────────────────────────────────────────────
@@ -241,3 +226,19 @@ async def ask(request: AskRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ─── Serve Built Frontend (Production) ────────────────────────────────────────
+frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if frontend_dist.is_dir():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="static")
+else:
+    @app.get("/")
+    async def root():
+        return {
+            "name": "Document QA System API",
+            "status": "online",
+            "docs_url": "/docs",
+            "frontend_url": "http://localhost:5173",
+        }
