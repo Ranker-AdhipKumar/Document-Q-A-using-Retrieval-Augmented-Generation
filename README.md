@@ -4,6 +4,50 @@ A full-stack RAG (Retrieval-Augmented Generation) system for uploading documents
 
 ---
 
+## 🌐 Live Demo
+
+🔗 **Live Deployment:** **[document-qa-system-53av.onrender.com](https://document-qa-system-53av.onrender.com)**
+
+> [!NOTE]
+> **Cloud Preview vs. Local Performance:**
+> The live deployment is hosted on Render's free cloud tier, which may experience initial cold-start latency and temporary API rate limits while indexing or retrieving document embeddings. If a query takes a moment to begin streaming, please allow it a brief moment to complete.
+> 
+> For **instantaneous streaming and ultra-responsive performance**, running the project locally is highly recommended!
+
+---
+
+## 📸 Showcase & Preview
+
+### 🎬 Animated Feature Walkthrough
+![DocQA Walkthrough Preview](docs/images/demo.gif)
+
+*(A high-definition video walkthrough is also available at [docs/images/demo.mp4](docs/images/demo.mp4))*
+
+---
+
+### 🖼️ Screenshots
+
+<p align="center">
+  <b>Complete Workspace Overview (Upload, Real-Time Knowledge Graph & Grounded Chat)</b><br/>
+  <img src="docs/images/app-overview.png" alt="Workspace Overview" width="900"/>
+</p>
+
+<br/>
+
+<p align="center">
+  <b>Interactive AI Knowledge Graph (D3 Force Graph with Co-occurrence Clustering & Click-to-Ask)</b><br/>
+  <img src="docs/images/knowledge-graph.png" alt="Knowledge Graph" width="900"/>
+</p>
+
+<br/>
+
+<p align="center">
+  <b>Grounded RAG with Verbatim Source Citations & Inspection Drawer</b><br/>
+  <img src="docs/images/features-preview.png" alt="Features Preview" width="900"/>
+</p>
+
+---
+
 ## ✨ Features
 
 | Feature | Detail |
@@ -50,7 +94,7 @@ uvicorn main:app --reload --port 8000
 The backend will be available at **http://localhost:8000**
 Interactive API docs: **http://localhost:8000/docs**
 
-### Step 3 — Set up the frontend
+### Step 3 — Set up the frontend (Development Mode)
 
 ```powershell
 cd doc-qa\frontend
@@ -60,6 +104,20 @@ npm run dev
 ```
 
 Open **http://localhost:5173** in your browser.
+
+---
+
+### ⚡ One-Command Full-Stack Hosting (Production Mode)
+
+Because the pre-built frontend is embedded directly into FastAPI, you can host both the frontend and backend together on a single port with just one command:
+
+```powershell
+cd doc-qa\backend
+$env:GEMINI_API_KEY = "your-api-key-here"
+uvicorn main:app --port 8080
+```
+
+Open **http://localhost:8080** to use the full application locally!
 
 ---
 
