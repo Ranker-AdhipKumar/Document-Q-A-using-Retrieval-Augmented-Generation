@@ -11,6 +11,6 @@ services:
       - key: MAX_PERSISTED_DOCS
         value: "20"
       - key: GEMINI_MODEL
-        value: "gemini-3.8-flash"
+        value: "gemini-3.5-flash-lite"
       - key: EMBEDDING_MODEL
         value: "models/gemini-embedding-2"

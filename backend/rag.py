@@ -20,9 +20,15 @@ from models import AskResponse, Citation, ChatMessage
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-2")
 STORE_NAME_KEY = "file_search_store_name"
+
+def get_candidate_models() -> list[str]:
+    primary = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    fallback = ["gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"]
+    candidates = [primary] + [m for m in fallback if m != primary]
+    return candidates
 
 _client: genai.Client | None = None
 
@@ -138,49 +144,59 @@ def ask_question(
              "say so clearly. Always cite specific sections or documents."
     )
 
-    interaction = client.interactions.create(
-        model=GEMINI_MODEL,
-        input=question,
-        system_instruction=system_instruction,
-        tools=[
-            {
-                "type": "file_search",
-                "file_search_store_names": [store_name],
-            }
-        ],
-    )
+    for model_name in get_candidate_models():
+        try:
+            interaction = client.interactions.create(
+                model=model_name,
+                input=question,
+                system_instruction=system_instruction,
+                tools=[
+                    {
+                        "type": "file_search",
+                        "file_search_store_names": [store_name],
+                    }
+                ],
+            )
 
-    # Extract answer text and citations
-    answer_parts: list[str] = []
-    citations: list[Citation] = []
+            # Extract answer text and citations
+            answer_parts: list[str] = []
+            citations: list[Citation] = []
 
-    for step in interaction.steps:
-        if step.type == "model_output":
-            for content_block in step.content:
-                if content_block.type == "text":
-                    answer_parts.append(content_block.text)
-                    if content_block.annotations:
-                        for ann in content_block.annotations:
-                            if ann.type == "file_citation":
-                                citations.append(
-                                    Citation(
-                                        file_name=getattr(ann, "file_name", "Unknown"),
-                                        source=getattr(ann, "source", ""),
-                                    )
-                                )
+            for step in getattr(interaction, "steps", []):
+                if step.type == "model_output":
+                    for content_block in step.content:
+                        if content_block.type == "text":
+                            answer_parts.append(content_block.text)
+                            if content_block.annotations:
+                                for ann in content_block.annotations:
+                                    if ann.type == "file_citation":
+                                        citations.append(
+                                            Citation(
+                                                file_name=getattr(ann, "file_name", "Unknown"),
+                                                source=getattr(ann, "source", ""),
+                                            )
+                                        )
 
-    # Deduplicate citations
-    seen = set()
-    unique_citations: list[Citation] = []
-    for c in citations:
-        key = (c.file_name, c.source[:80])
-        if key not in seen:
-            seen.add(key)
-            unique_citations.append(c)
+            # Deduplicate citations
+            seen = set()
+            unique_citations: list[Citation] = []
+            for c in citations:
+                key = (c.file_name, c.source[:80])
+                if key not in seen:
+                    seen.add(key)
+                    unique_citations.append(c)
+
+            return AskResponse(
+                answer="".join(answer_parts),
+                citations=unique_citations,
+            )
+        except Exception as e:
+            logger.warning("ask_question with %s failed: %s. Trying fallback model...", model_name, e)
+            continue
 
     return AskResponse(
-        answer="".join(answer_parts),
-        citations=unique_citations,
+        answer="The AI service is experiencing high demand. Please try asking again shortly.",
+        citations=[],
     )
 
 
@@ -211,42 +227,51 @@ async def ask_question_stream(
     )
 
     citations: list[Citation] = []
+    models_to_try = get_candidate_models()
 
-    stream = client.interactions.create(
-        model=GEMINI_MODEL,
-        input=question,
-        system_instruction=system_instruction,
-        tools=[
-            {
-                "type": "file_search",
-                "file_search_store_names": [store_name],
-            }
-        ],
-        stream=True,
-    )
+    for model_name in models_to_try:
+        try:
+            logger.info("Attempting streaming QA with model '%s'...", model_name)
+            stream = client.interactions.create(
+                model=model_name,
+                input=question,
+                system_instruction=system_instruction,
+                tools=[
+                    {
+                        "type": "file_search",
+                        "file_search_store_names": [store_name],
+                    }
+                ],
+                stream=True,
+            )
 
-    for event in stream:
-        if event.event_type == "step.delta":
-            delta = event.delta
-            if getattr(delta, "type", None) == "text":
-                yield "data: " + json.dumps({"type": "text", "content": delta.text}) + "\n\n"
+            streamed_any = False
+            for event in stream:
+                if event.event_type == "error":
+                    err = getattr(event, "error", "Stream error")
+                    raise RuntimeError(f"Model {model_name} error: {err}")
 
-        elif event.event_type == "interaction.completed":
-            # Collect citations from completed interaction steps
-            for step in event.interaction.steps:
-                if step.type == "model_output":
-                    for cb in step.content:
-                        if cb.type == "text" and cb.annotations:
-                            for ann in cb.annotations:
-                                if ann.type == "file_citation":
-                                    citations.append(
-                                        Citation(
-                                            file_name=getattr(ann, "file_name", "Unknown"),
-                                            source=getattr(ann, "source", ""),
-                                        )
-                                    )
+                elif event.event_type == "step.delta":
+                    delta = event.delta
+                    if getattr(delta, "type", None) == "text" and delta.text:
+                        streamed_any = True
+                        yield "data: " + json.dumps({"type": "text", "content": delta.text}) + "\n\n"
 
-            # Deduplicate and send citations as final event
+                elif event.event_type == "interaction.completed":
+                    for step in getattr(event.interaction, "steps", []):
+                        if step.type == "model_output":
+                            for cb in step.content:
+                                if cb.type == "text" and cb.annotations:
+                                    for ann in cb.annotations:
+                                        if ann.type == "file_citation":
+                                            citations.append(
+                                                Citation(
+                                                    file_name=getattr(ann, "file_name", "Unknown"),
+                                                    source=getattr(ann, "source", ""),
+                                                )
+                                            )
+
+            # Deduplicate and send citations
             seen: set[tuple] = set()
             unique: list[dict] = []
             for c in citations:
@@ -257,3 +282,11 @@ async def ask_question_stream(
 
             yield "data: " + json.dumps({"type": "citations", "citations": unique}) + "\n\n"
             yield "data: " + json.dumps({"type": "done"}) + "\n\n"
+            return
+
+        except Exception as e:
+            logger.warning("Streaming with model '%s' failed: %s. Trying fallback model...", model_name, e)
+            continue
+
+    # If all candidate models failed
+    yield "data: " + json.dumps({"type": "error", "message": "The AI service is experiencing high demand. Please try asking again in a few moments."}) + "\n\n"

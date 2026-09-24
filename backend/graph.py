@@ -30,7 +30,7 @@ from models import (
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 # Module-level graph — accumulated across all uploaded documents
 _graph: nx.DiGraph = nx.DiGraph()
